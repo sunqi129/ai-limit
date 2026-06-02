@@ -38,6 +38,7 @@ _REFRESH_SEC  = 60
 _DISPLAY_MODES = ("5h", "7d")
 _LANGS         = ("zh", "en")
 _SERVICES      = ("claude", "codex")
+_MENU_MIN_WIDTH = 290
 _ZH_WEEKDAYS   = "一二三四五六日"
 _EN_WEEKDAYS   = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 _EN_RESET_PAD  = 8
@@ -474,6 +475,9 @@ class AiLimitApp(rumps.App):
             None,
             self._quit_item,
         ]
+        # NSMenu otherwise shrinks to the longest localized label, so the
+        # Chinese and English panels visibly jump between different widths.
+        self.menu._menu.setMinimumWidth_(_MENU_MIN_WIDTH)
         self._update_mode_checks()
         self._update_lang_checks()
         self._update_service_checks()
