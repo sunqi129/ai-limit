@@ -10,6 +10,12 @@
 
 ![菜单栏截图](docs/screenshot-menubar.png)
 
+![菜单栏上下文](docs/screenshot-menubar-2.png)
+
+![菜单栏上下文](docs/screenshot-menubar-3.png)
+
+<img src="docs/screenshot-menubar-dropdown.png" width="320" />
+
 **一键安装**
 
 ```bash
