@@ -15,8 +15,8 @@ Lives in the menu bar, shows live quota at a glance — no terminal needed.
 ![Menu bar in context](docs/screenshot-menubar-3.png)
 
 <table><tr>
-  <td><img src="docs/screenshot-menubar-dropdown.png" width="280" /></td>
   <td><img src="docs/screenshot-menubar-dropdown-en.png" width="280" /></td>
+  <td><img src="docs/screenshot-menubar-dropdown.png" width="280" /></td>
 </tr></table>
 
 **One-line install**

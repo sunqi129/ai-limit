@@ -72,7 +72,7 @@ def _fmt_reset_dt(dt, lang):
         elif days == 2:  wd = "2 days"
         elif next_week:  wd = f"next {_EN_WEEKDAYS[dt.weekday()]}"
         else:            wd = _EN_WEEKDAYS[dt.weekday()]
-        return f"{wd.ljust(_EN_RESET_PAD)} {dt:%H:%M}"
+        return f"{dt:%H:%M}  {wd}"
     if days == 0:    wd = "今天"
     elif days == 1:  wd = "明天"
     elif days == 2:  wd = "后天"
@@ -351,7 +351,7 @@ def _inert(menu_item):
 
 def _detail_text(mode, pct, reset, lang):
     if lang == "en":
-        return f"  {mode}\t{pct:>3}% left\t↻ {reset}"
+        return f"  {mode}\t{pct:>3}% left   \t↻ {reset}"
     return f"  {mode}\t{pct:>3}% 剩余\t↻ {reset}"
 
 # ── 主 App ────────────────────────────────────────────────────────────────────
