@@ -18,7 +18,7 @@ if [[ ! -d "$BUNDLE" ]]; then
   exit 1
 fi
 
-VERSION=$(defaults read "$PWD/$BUNDLE/Contents/Info.plist" CFBundleShortVersionString)
+VERSION=$(plutil -extract CFBundleShortVersionString raw "$BUNDLE/Contents/Info.plist")
 VOLNAME="ai-limit"
 DMG_OUT="dist/ai-limit-${VERSION}.dmg"
 
