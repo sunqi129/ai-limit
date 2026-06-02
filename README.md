@@ -8,9 +8,7 @@ A lightweight tool to monitor real-time **Claude Code** and **Codex** usage limi
 
 Lives in the menu bar, shows live quota at a glance — no terminal needed.
 
-```
-Claude 85% ▰▰▰▰   CodeX 99% ▰▰▰▰
-```
+![Menu bar screenshot](docs/screenshot-menubar.png)
 
 **One-line install**
 
@@ -44,45 +42,7 @@ bash make-dmg.sh
 
 ### Preview
 
-```
-────────────────────────────────────────────────────
-                    Claude Code                     
-
-  Stats from: 05-19 15:24 CST  (last 7 days)
-  Total output: 3.2M  |  Net input (non-cache): 13.9M
-
-  Output share
-  sonnet-4-6  ███████████████░░░░░  76%
-  opus-4-7    █████░░░░░░░░░░░░░░░  24%
-
-  Live quota  (independent of --days range)
-  Source: claude.ai usage API  (browser session)
-
-  5-hour window  ██████████████░░░░░░  left 68%  (used 32%)
-  Resets at: 05-26 16:20 CST
-
-  7-day window   ██████████████████░░  left 89%  (used 11%)
-  Resets at: 05-31 13:00 CST
-
-  📊 At current rate (0.3%/hr), 89% left ≈ 344 hrs
-
-────────────────────────────────────────────────────
-                CodeX (OpenAI GPT-5)                
-
-  Data time: 05-26 15:24 CST  (live (web))
-  Source: chatgpt.com usage API  (browser session)
-  Plan: PLUS
-
-  5-hour window  ████████░░░░░░░░░░░░  left 39%  (used 61%)
-  Resets at: 05-26 17:22 CST
-
-  7-day window   ██████████████████░░  left 89%  (used 11%)
-  Resets at: 06-01 18:26 CST
-
-  📊 At current rate (0.5%/hr), 89% left ≈ 170 hrs
-
-────────────────────────────────────────────────────
-```
+![CLI screenshot](docs/screenshot-cli.png)
 
 ### Requirements
 
