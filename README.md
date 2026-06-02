@@ -1,6 +1,6 @@
 # ai-limit
 
-[中文说明](README.zh-CN.md)
+English | [中文说明](README.zh-CN.md)
 
 A lightweight tool to monitor real-time **Claude Code** and **Codex** usage limits, quota consumption, and token statistics — so you can adjust your AI usage before hitting rate limits. Available as a macOS menu bar app or a CLI.
 

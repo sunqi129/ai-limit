@@ -1,6 +1,6 @@
 # ai-limit
 
-[English](README.md)
+[English](README.md) | 中文说明
 
 查看 Claude Code 和 CodeX 的实时剩余额度与 token 消耗情况。支持 macOS 菜单栏 App 和命令行两种使用方式。
 
