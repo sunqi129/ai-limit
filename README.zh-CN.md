@@ -15,8 +15,8 @@
 ![菜单栏上下文](docs/screenshot-menubar-3.png)
 
 <table><tr>
-  <td><img src="docs/screenshot-menubar-dropdown-en.png" width="280" /></td>
-  <td><img src="docs/screenshot-menubar-dropdown.png" width="280" /></td>
+  <td><img src="docs/screenshot-menubar-dropdown-v031-en.png" width="280" /></td>
+  <td><img src="docs/screenshot-menubar-dropdown-v031.png" width="280" /></td>
 </tr></table>
 
 **一键安装**
