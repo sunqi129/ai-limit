@@ -45,43 +45,7 @@ _EN_RESET_PAD  = 8
 _PROJECT_URL   = "https://github.com/zhuchenxi113/ai-limit"
 _AUTHOR_URL_ZH = "https://gitee.com/zhuchenxi113"
 _AUTHOR_URL_EN = "https://github.com/zhuchenxi113"
-_LAUNCH_AGENT_LABEL = "com.zhuchenxi.ai-limit"
-_LAUNCH_AGENT_PLIST = pathlib.Path.home() / "Library/LaunchAgents" / f"{_LAUNCH_AGENT_LABEL}.plist"
-_APP_EXECUTABLE     = pathlib.Path("/Applications/ai-limit.app/Contents/MacOS/ai-limit")
-
 # ── 工具函数 ─────────────────────────────────────────────────────────────────
-
-def _login_item_enabled():
-    return _LAUNCH_AGENT_PLIST.exists()
-
-def _set_login_item(enabled: bool):
-    if enabled:
-        _LAUNCH_AGENT_PLIST.parent.mkdir(parents=True, exist_ok=True)
-        _LAUNCH_AGENT_PLIST.write_text(
-            f"""<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>{_LAUNCH_AGENT_LABEL}</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>{_APP_EXECUTABLE}</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <false/>
-</dict>
-</plist>
-""",
-            encoding="utf-8",
-        )
-    else:
-        try:
-            _LAUNCH_AGENT_PLIST.unlink()
-        except FileNotFoundError:
-            pass
 
 def _tr(lang, zh, en):
     return en if lang == "en" else zh
@@ -486,18 +450,12 @@ class AiLimitApp(rumps.App):
         self._about_menu.add(self._about_desc)
         self._about_menu.add(self._about_src)
 
-        # 开机自启
-        self._login_item = rumps.MenuItem(
-            "开机自启" if lang == "zh" else "Launch at Login",
-            callback=self._toggle_login_item,
-        )
-        self._update_login_item_check()
-
-        # Star on GitHub
+        # Star on GitHub（放在关于子菜单里，_about_menu 之后才 add）
         self._star_item = rumps.MenuItem(
             "⭐ 给个 Star，鼓励作者" if lang == "zh" else "⭐ Star on GitHub — support the author",
             callback=lambda _: webbrowser.open(_PROJECT_URL),
         )
+        self._about_menu.add(self._star_item)
 
         # 退出
         self._quit_item = rumps.MenuItem(
@@ -519,14 +477,12 @@ class AiLimitApp(rumps.App):
             self._mode_menu,
             self._lang_menu,
             self._svc_menu,
-            self._login_item,
             None,
             self._refresh_item,
             self._codex_dash,
             self._claude_dash,
             None,
             self._about_menu,
-            self._star_item,
             None,
             self._quit_item,
         ]
@@ -739,7 +695,6 @@ class AiLimitApp(rumps.App):
             "数据来源：本地日志 + 官方网页接口",
             "Source: local logs + official web endpoints",
         )
-        self._update_login_item_check()
         self._star_item.title    = _tr(lang, "⭐ 给个 Star，鼓励作者", "⭐ Star on GitHub — support the author")
         self._quit_item.title    = _tr(lang, "退出", "Quit")
 
@@ -777,16 +732,6 @@ class AiLimitApp(rumps.App):
         self._render()
         # 后台异步刷新（如果新启用的服务无缓存，几秒后自动出现）
         self._kick_background_fetch()
-
-    def _toggle_login_item(self, _):
-        _set_login_item(not _login_item_enabled())
-        self._update_login_item_check()
-
-    def _update_login_item_check(self):
-        lang = self._state["lang"]
-        enabled = _login_item_enabled()
-        suffix = " ✓" if enabled else ""
-        self._login_item.title = _tr(lang, "开机自启", "Launch at Login") + suffix
 
     def _update_service_checks(self):
         lang = self._state["lang"]
