@@ -160,7 +160,7 @@ AI_LIMIT_LANG=zh ai-limit   # 强制中文
 
 ## 作者其他项目
 
-- [CalcPro — 计算器](https://apps.apple.com/us/app/calcpro-calculator-waitsugar/id6759244291)：iOS 计算器 App，App Store 可下载。
+- [CalcPro — 计算器](https://apps.apple.com/us/app/calcpro-calculator-waitsugar/id6759244291)：可在 App Store 下载；如果链接无法直接打开，请在 App Store 搜索 “WaitSugar CalcPro”。
 - [观点会审](https://decide.waitsugar.com/)：网页版决策辅助工具。
 
 ## License
