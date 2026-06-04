@@ -67,6 +67,15 @@ Output language is detected automatically from your system locale.
 - Chrome or Firefox signed in to [chatgpt.com](https://chatgpt.com) (recommended path for Codex quota)
 - Optional: [Codex CLI](https://developers.openai.com/codex/cli) installed and signed in (fallback when browser cookies are unavailable)
 
+### Usage Prerequisites
+
+ai-limit only reads your existing local Claude / ChatGPT browser session and local usage records. It does not provide subscriptions and does not bypass any quota limits.
+
+- If Claude Code is available and signed in, Claude Code quota is shown.
+- If ChatGPT / Codex is available and signed in, Codex quota is shown.
+- Services that are unavailable or not signed in show a ⚠️ warning. You can hide each service from the menu bar app under `Services`.
+- If both services are unavailable, the menu bar shows `ai-limit ⚠️` or the corresponding error state.
+
 ### Installation
 
 **1. Clone the repo**

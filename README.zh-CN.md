@@ -67,6 +67,15 @@ bash make-dmg.sh
 - Chrome 或 Firefox 已登录 [chatgpt.com](https://chatgpt.com)（用于读取 CodeX 额度，推荐路径）
 - 可选：[CodeX CLI](https://developers.openai.com/codex/cli) 已安装并登录（作为浏览器 cookie 失效时的兜底路径）
 
+### 使用前提
+
+ai-limit 只读取你本机已有的 Claude / ChatGPT 登录态与本地使用记录，不提供订阅，也不会绕过任何额度限制。
+
+- 已开通并登录 Claude Code：显示 Claude Code 额度。
+- 已开通并登录 ChatGPT / CodeX：显示 CodeX 额度。
+- 未开通或未登录的服务会显示 ⚠️ 提示，可在菜单栏 App 的「监控服务」里关闭对应显示。
+- 如果两个服务都不可用，菜单栏会显示 `ai-limit ⚠️` 或对应错误提示。
+
 ### 安装
 
 **1. 克隆项目**
