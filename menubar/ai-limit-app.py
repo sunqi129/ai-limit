@@ -304,7 +304,7 @@ def _set_bar_title(app, text):
 
 
 def _bar_line_text(label, pct, err):
-    return f"{label} ⚠️" if err else f"{label} {pct}%"
+    return "⚠️" if err else f"{label} {pct}%"
 
 
 def _render_stacked_title_image(items):
@@ -652,7 +652,7 @@ class AiLimitApp(rumps.App):
             _set_bar_stacked_title(self, bar_items)
         except Exception:
             parts = [_bar_line_text(lbl, pct, err) for lbl, pct, err in bar_items]
-            _set_bar_title(self, "\n".join(parts) if parts else "ai-limit ⚠️")
+            _set_bar_title(self, "\n".join(parts) if parts else "⚠️")
 
         # Claude 区块 —— 服务被关时整段隐藏
         self._claude_header._menuitem.setHidden_(not show_claude)
