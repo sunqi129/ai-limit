@@ -244,10 +244,11 @@ def _fetch_codex(lang):
             "7d_reset": secondary.get("resets_at"),
             "plan":     rl.get("plan_type") or "?",
         }
-    except CodexAuthError:
-        return {"error": _tr(lang,
+    except CodexAuthError as e:
+        msg = str(e) or _tr(lang,
             "无 Codex 权限（可能未订阅或需重新登录）",
-            "No Codex access (subscription required or re-login needed)")}
+            "No Codex access (subscription required or re-login needed)")
+        return {"error": msg}
     except CodexWebError as e:
         msg = str(e)
         if "timed out" in msg or "urlopen" in msg:

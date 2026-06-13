@@ -541,7 +541,9 @@ class CodexWebError(Exception):
 class CodexAuthError(CodexWebError):
     """401 / 403：未登录 ChatGPT 或无 Codex 权限（可能未订阅）。
     捕获后应直接跳过所有 fallback，app-server 也会因同样原因失败。"""
-    pass
+    def __init__(self, message, kind="generic"):
+        super().__init__(message)
+        self.kind = kind
 
 
 def _load_chatgpt_cookies():
@@ -603,6 +605,14 @@ def _get_chatgpt_access_token(cookie_header: str, timeout: int) -> str:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             body = r.read()
     except urllib.error.HTTPError as e:
+        if e.code in (401, 403):
+            raise CodexAuthError(
+                t(
+                    f"ChatGPT 登录态已失效或被拒绝（session HTTP {e.code}）。请在 Chrome/Firefox 重新登录 chatgpt.com，并确认 ai-limit 读到的是同一个浏览器 Profile。",
+                    f"ChatGPT session expired or was rejected (session HTTP {e.code}). Re-login to chatgpt.com in Chrome/Firefox and make sure ai-limit is reading the same browser profile.",
+                ),
+                kind="session",
+            )
         raise CodexWebError(f"session HTTP {e.code}")
     except Exception as e:
         raise CodexWebError(f"session: {e}")
@@ -612,11 +622,26 @@ def _get_chatgpt_access_token(cookie_header: str, timeout: int) -> str:
         raise CodexWebError("session: non-JSON response")
     token = data.get("accessToken")
     if not token:
-        raise CodexWebError(t(
-            "请先在浏览器登录 chatgpt.com",
-            "please log in to chatgpt.com in your browser",
-        ))
+        raise CodexAuthError(
+            t(
+                "ChatGPT 浏览器 cookie 可读取，但没有拿到访问令牌。请在 Chrome/Firefox 重新登录 chatgpt.com，并确认当前浏览器 Profile 是有 Codex 权限的账号。",
+                "ChatGPT browser cookies were readable, but no access token was returned. Re-login to chatgpt.com in Chrome/Firefox and confirm the current browser profile uses the account with Codex access.",
+            ),
+            kind="session",
+        )
     return token
+
+
+def _codex_usage_denied_message(status_code: int) -> str:
+    if status_code == 401:
+        return t(
+            "Codex 用量接口返回 HTTP 401：ChatGPT 登录态可能已过期。请在 Chrome/Firefox 重新登录 chatgpt.com 后重启 ai-limit。",
+            "Codex usage API returned HTTP 401: your ChatGPT session may have expired. Re-login to chatgpt.com in Chrome/Firefox, then restart ai-limit.",
+        )
+    return t(
+        "Codex 用量接口返回 HTTP 403：ChatGPT 已登录，但当前账号/工作区没有访问 Codex 用量接口的权限。请检查：1) 浏览器 Profile 是否是有 Codex 权限的账号；2) ChatGPT 计划或工作区 seat 是否包含 Codex；3) Business/Enterprise 工作区是否有 credits 或管理员是否限制了 Codex；4) 能否在网页打开 Codex 用量页。",
+        "Codex usage API returned HTTP 403: ChatGPT is signed in, but this account/workspace cannot access the Codex usage endpoint. Check: 1) the browser profile uses the account with Codex access; 2) your ChatGPT plan or workspace seat includes Codex; 3) Business/Enterprise workspace credits/admin controls allow Codex; 4) the Codex usage page opens in the browser.",
+    )
 
 
 def _normalize_web_rate_limits(data: dict) -> dict:
@@ -668,10 +693,8 @@ def live_codex_web_usage(timeout: int = CLAUDE_WEB_TIMEOUT_SEC):
     except urllib.error.HTTPError as e:
         if e.code in (401, 403):
             raise CodexAuthError(
-                t(
-                    f"HTTP {e.code}：未登录 ChatGPT 或无 Codex 权限（可能未订阅，或需重新登录）",
-                    f"HTTP {e.code}: not signed in to ChatGPT or no Codex access (subscription may be required)",
-                )
+                _codex_usage_denied_message(e.code),
+                kind="usage",
             )
         raise CodexWebError(f"HTTP {e.code}")
     except Exception as e:
