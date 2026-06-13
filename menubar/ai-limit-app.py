@@ -102,10 +102,6 @@ def _set_login_item(enabled: bool):
 def _tr(lang, zh, en):
     return en if lang == "en" else zh
 
-def _native_bar(pct, width=4):
-    filled = round(max(0, min(100, pct)) / 100 * width)
-    return "▰" * filled + "▱" * (width - filled)
-
 def _fmt_plan(plan, lang="zh"):
     if not plan or plan == "?":
         return ""
@@ -310,91 +306,65 @@ def _set_bar_title(app, text):
     app.title = text
 
 
-def _sf_battery_image(pct, point_size=14):
-    """返回对应百分比的 SF Symbol 电池 NSImage（5 档量化）。
-
-    粒度：0(<13) / 25 / 50 / 75 / 100(≥88)。
-    不在这里上色——会作为 template 一起整合进 composite，由 AppKit 在状态
-    栏上下文里和系统 Wi-Fi、电池等一起决定实际颜色（vibrancy/明暗自适应）。
-    """
-    if pct >= 88:
-        name = "battery.100"
-    elif pct >= 63:
-        name = "battery.75"
-    elif pct >= 38:
-        name = "battery.50"
-    elif pct >= 13:
-        name = "battery.25"
-    else:
-        name = "battery.0"
-    img = AppKit.NSImage.imageWithSystemSymbolName_accessibilityDescription_(name, None)
-    if img is None:
-        return None
-    cfg = AppKit.NSImageSymbolConfiguration.configurationWithPointSize_weight_(
-        point_size, AppKit.NSFontWeightMedium
-    )
-    return img.imageWithSymbolConfiguration_(cfg)
+def _bar_line_text(label, pct, err):
+    return f"{label} ⚠️" if err else f"{label} {pct}%"
 
 
-def _battery_attachment(pct, font):
-    """SF Symbol 电池包成 NSTextAttachment，可塞进 NSAttributedString 里跟文字一行排。
+def _render_stacked_title_image(items):
+    """Render a compact two-line template image for the macOS status bar."""
+    lines = [_bar_line_text(label, pct, err) for label, pct, err in items]
+    if not lines:
+        lines = ["ai-limit ⚠️"]
 
-    image 设 template，菜单栏会把它当系统图标处理（vibrancy + 亮暗自适应），
-    跟 Wi-Fi / 系统电池图标在同一渲染通道。
-    """
-    bat = _sf_battery_image(pct)
-    if bat is None:
-        return None
-    bat.setTemplate_(True)
-    attach = AppKit.NSTextAttachment.alloc().init()
-    attach.setImage_(bat)
-    sz = bat.size()
-    # 垂直微调：让电池中线大致对齐文字中线
-    y_offset = (font.capHeight() - sz.height) / 2
-    attach.setBounds_(AppKit.NSMakeRect(0, y_offset, sz.width, sz.height))
-    return AppKit.NSAttributedString.attributedStringWithAttachment_(attach)
+    status_height = AppKit.NSStatusBar.systemStatusBar().thickness()
+    height = max(18, int(status_height))
+    font_size = 9.0 if len(lines) > 1 else 11.5
+    font = AppKit.NSFont.systemFontOfSize_weight_(font_size, AppKit.NSFontWeightSemibold)
+    attrs = {
+        AppKit.NSFontAttributeName: font,
+        # The image is marked template below, so AppKit uses this only as alpha.
+        AppKit.NSForegroundColorAttributeName: AppKit.NSColor.blackColor(),
+    }
+    rendered = [
+        AppKit.NSAttributedString.alloc().initWithString_attributes_(line, attrs)
+        for line in lines
+    ]
+    sizes = [line.size() for line in rendered]
+    padding_x = 2
+    gap = -1 if len(lines) > 1 else 0
+    width = max(1, int(max(size.width for size in sizes) + padding_x * 2 + 0.999))
+    total_text_height = sum(size.height for size in sizes) + gap * (len(sizes) - 1)
+    start_y = max(0, (height - total_text_height) / 2)
 
+    image = AppKit.NSImage.alloc().initWithSize_(AppKit.NSMakeSize(width, height))
+    image.lockFocus()
+    AppKit.NSColor.clearColor().set()
+    AppKit.NSRectFill(AppKit.NSMakeRect(0, 0, width, height))
 
-def _render_attributed_title(items):
-    """构建状态栏 attributed title：文字交给 NSStatusBarButton 原生渲染（拿到
-    系统 vibrancy 和亮暗自适应），电池作为内联 template image 附件。
+    cursor_y = start_y + total_text_height
+    for line, size in zip(rendered, sizes):
+        cursor_y -= size.height
+        x = (width - size.width) / 2
+        line.drawAtPoint_(AppKit.NSMakePoint(x, cursor_y))
+        cursor_y -= gap
 
-    旧方案是把整条画成位图（NSImage.lockFocus + labelColor），但 bitmap 里
-    的文字是一次性栅格化的灰度，拿不到状态栏文字的 vibrancy，视觉上比系统
-    时钟、菜单文字偏暗。
-    """
-    font = AppKit.NSFont.menuBarFontOfSize_(0)
-    text_attrs = {AppKit.NSFontAttributeName: font}
-    mas = AppKit.NSMutableAttributedString.alloc().init()
-
-    def append_text(s):
-        mas.appendAttributedString_(
-            AppKit.NSAttributedString.alloc().initWithString_attributes_(s, text_attrs)
-        )
-
-    for i, (label, pct, err) in enumerate(items):
-        prefix = "  " if i > 0 else ""
-        if err:
-            append_text(f"{prefix}{label} ⚠️")
-            continue
-        append_text(f"{prefix}{label} {pct}% ")
-        bat_attach = _battery_attachment(pct, font)
-        if bat_attach is not None:
-            mas.appendAttributedString_(bat_attach)
-
-    if mas.length() == 0:
-        append_text("ai-limit ⚠️")
-    return mas
+    image.unlockFocus()
+    image.setTemplate_(True)
+    return image
 
 
-def _set_bar_with_batteries(app, items):
-    """把 attributed title（文字 + 电池附件）安到状态栏按钮上。"""
+def _set_bar_stacked_title(app, items):
+    """Show Claude and CodeX usage as stacked text without battery icons."""
     btn = _status_button(app)
     if btn is None:
         raise RuntimeError("no status button")
-    btn.setImage_(None)
     btn.setTitle_("")
-    btn.setAttributedTitle_(_render_attributed_title(items))
+    btn.setAttributedTitle_(AppKit.NSAttributedString.alloc().initWithString_(""))
+    btn.setImage_(_render_stacked_title_image(items))
+    try:
+        btn.setImagePosition_(AppKit.NSImageOnly)
+    except Exception:
+        btn.setImagePosition_(1)  # NSImageOnly
 
 def _noop(_):
     """无副作用 callback，仅用于让 macOS 把无动作菜单项也按常规文字色渲染。
@@ -647,8 +617,7 @@ class AiLimitApp(rumps.App):
         claude = self._claude or {}
         codex  = self._codex  or {}
 
-        # 菜单栏标题：[Claude 68% ⌬]  [CodeX 99% ⌬]
-        # 电池是原生 SF Symbol，Apple 亲手画的 iPhone 风格，向量永不糊
+        # 菜单栏标题：Claude / CodeX 上下两层显示，避免横向占用太多空间。
         bar_items = []
         if show_claude:
             if "error" in claude:
@@ -663,14 +632,10 @@ class AiLimitApp(rumps.App):
                 pct = codex["5h_left"] if mode == "5h" else codex["7d_left"]
                 bar_items.append(("CodeX", pct, False))
         try:
-            _set_bar_with_batteries(self, bar_items)
+            _set_bar_stacked_title(self, bar_items)
         except Exception:
-            # SF Symbol 不可用时（很老的 macOS）回退到 ▰▱ 文字版
-            parts = [
-                f"{lbl} ⚠️" if err else f"{lbl} {pct}% {_native_bar(pct)}"
-                for lbl, pct, err in bar_items
-            ]
-            _set_bar_title(self, "  ".join(parts) if parts else "ai-limit ⚠️")
+            parts = [_bar_line_text(lbl, pct, err) for lbl, pct, err in bar_items]
+            _set_bar_title(self, "\n".join(parts) if parts else "ai-limit ⚠️")
 
         # Claude 区块 —— 服务被关时整段隐藏
         self._claude_header._menuitem.setHidden_(not show_claude)
