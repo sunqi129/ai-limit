@@ -168,6 +168,18 @@ class ClaudeWebError(Exception):
         self.kind = kind
 
 
+def _restore_hint(service: str) -> str:
+    if service == "claude":
+        return t(
+            "完成后点“立即刷新”恢复显示，或重新运行命令",
+            "After fixing it, click Refresh now to restore display, or rerun the command",
+        )
+    return t(
+        "完成后点“立即刷新”恢复显示，或重新运行命令",
+        "After fixing it, click Refresh now to restore display, or rerun the command",
+    )
+
+
 def _claude_web_context(referer: str) -> tuple[str, dict]:
     try:
         import browser_cookie3
@@ -191,16 +203,16 @@ def _claude_web_context(referer: str) -> tuple[str, dict]:
     if not cookies:
         detail = f" ({'; '.join(errs)})" if errs else ""
         raise ClaudeWebError(t(
-            f"无法读取浏览器 cookie{detail}，请先在浏览器登录 claude.ai",
-            f"cannot read browser cookies{detail}, please log in to claude.ai first",
+            f"Claude 登录态不可读{detail} | 在 Chrome/Firefox 登录 claude.ai，并确认是有 Claude Code 权限的浏览器 Profile | {_restore_hint('claude')}",
+            f"Claude browser session is unreadable{detail} | Sign in to claude.ai in Chrome/Firefox and confirm this browser profile has Claude Code access | {_restore_hint('claude')}",
         ))
 
     cookie_dict = dict(cookies)
     org_id = cookie_dict.get("lastActiveOrg", "")
     if not org_id:
         raise ClaudeWebError(t(
-            "未能从 cookie 读取 org ID，请先在浏览器打开 claude.ai",
-            "could not read org ID from cookie, please open claude.ai in your browser",
+            f"Claude 组织信息不可读 | 在浏览器打开 claude.ai，切到有 Claude Code 权限的组织 | {_restore_hint('claude')}",
+            f"Claude organization is unreadable | Open claude.ai in your browser and switch to the organization with Claude Code access | {_restore_hint('claude')}",
         ))
 
     cookie_header = "; ".join(f"{n}={v}" for n, v in cookies)
@@ -245,23 +257,33 @@ def _claude_web_get(path: str, headers: dict, timeout: int) -> dict:
                 "just a moment", "challenge-platform", "/cdn-cgi/", "请验证您是真人"))
         if is_cf:
             raise ClaudeWebError(t(
-                "claude.ai 触发了 Cloudflare 人机验证，请在浏览器打开 claude.ai 通过验证后重试",
-                "claude.ai is showing a Cloudflare human-verification challenge; "
-                "open claude.ai in your browser, pass it, then retry",
+                f"Claude 被 Cloudflare 人机验证拦截 | 在浏览器打开 claude.ai 并完成验证 | {_restore_hint('claude')}",
+                f"Claude is blocked by a Cloudflare human-check | Open claude.ai in your browser and pass the check | {_restore_hint('claude')}",
             ), kind="cloudflare")
-        if e.code in (401, 403):
+        if e.code == 401:
             raise ClaudeWebError(t(
-                "claude.ai 登录态已失效，请在浏览器重新登录",
-                "claude.ai session expired, please re-login in your browser",
+                f"Claude 登录态已失效（HTTP 401） | 在 Chrome/Firefox 重新登录 claude.ai | {_restore_hint('claude')}",
+                f"Claude session expired (HTTP 401) | Re-login to claude.ai in Chrome/Firefox | {_restore_hint('claude')}",
             ), kind="auth")
-        raise ClaudeWebError(f"HTTP {e.code}: {raw[:300]}")
+        if e.code == 403:
+            raise ClaudeWebError(t(
+                f"Claude 用量接口返回 HTTP 403 | 检查浏览器 Profile、Claude 组织和 Claude Code 权限，并确认网页用量页可打开 | {_restore_hint('claude')}",
+                f"Claude usage API returned HTTP 403 | Check the browser profile, Claude organization, and Claude Code access; confirm the usage page opens in the browser | {_restore_hint('claude')}",
+            ), kind="auth")
+        raise ClaudeWebError(t(
+            f"Claude 用量接口返回 HTTP {e.code} | 在浏览器打开 Claude 用量页确认登录、组织和权限；若网页正常，可能是内部接口变化 | {_restore_hint('claude')}",
+            f"Claude usage API returned HTTP {e.code} | Open the Claude usage page in your browser to confirm login, organization, and access; if the page works, the internal endpoint may have changed | {_restore_hint('claude')}",
+        ))
     except Exception as e:
         raise ClaudeWebError(str(e))
 
     try:
         return json.loads(body)
     except json.JSONDecodeError:
-        raise ClaudeWebError(f"非 JSON 响应: {body[:300].decode(errors='replace')}")
+        raise ClaudeWebError(t(
+            f"Claude 返回了非 JSON 响应 | 可能需要重新登录、完成验证，或内部接口发生变化 | {_restore_hint('claude')}",
+            f"Claude returned a non-JSON response | You may need to re-login, pass a browser check, or the internal endpoint may have changed | {_restore_hint('claude')}",
+        ))
 
 
 def live_claude_usage(timeout: int = CLAUDE_WEB_TIMEOUT_SEC) -> dict:
@@ -541,7 +563,9 @@ class CodexWebError(Exception):
 class CodexAuthError(CodexWebError):
     """401 / 403：未登录 ChatGPT 或无 Codex 权限（可能未订阅）。
     捕获后应直接跳过所有 fallback，app-server 也会因同样原因失败。"""
-    pass
+    def __init__(self, message, kind="generic"):
+        super().__init__(message)
+        self.kind = kind
 
 
 def _load_chatgpt_cookies():
@@ -603,6 +627,14 @@ def _get_chatgpt_access_token(cookie_header: str, timeout: int) -> str:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             body = r.read()
     except urllib.error.HTTPError as e:
+        if e.code in (401, 403):
+            raise CodexAuthError(
+                t(
+                    f"ChatGPT 登录态已失效或被拒绝（session HTTP {e.code}） | 在 Chrome/Firefox 重新登录 chatgpt.com，并确认 ai-limit 读到的是同一个浏览器 Profile | {_restore_hint('codex')}",
+                    f"ChatGPT session expired or was rejected (session HTTP {e.code}) | Re-login to chatgpt.com in Chrome/Firefox and make sure ai-limit is reading the same browser profile | {_restore_hint('codex')}",
+                ),
+                kind="session",
+            )
         raise CodexWebError(f"session HTTP {e.code}")
     except Exception as e:
         raise CodexWebError(f"session: {e}")
@@ -612,11 +644,26 @@ def _get_chatgpt_access_token(cookie_header: str, timeout: int) -> str:
         raise CodexWebError("session: non-JSON response")
     token = data.get("accessToken")
     if not token:
-        raise CodexWebError(t(
-            "请先在浏览器登录 chatgpt.com",
-            "please log in to chatgpt.com in your browser",
-        ))
+        raise CodexAuthError(
+            t(
+                f"ChatGPT cookie 可读取，但没有访问令牌 | 在 Chrome/Firefox 重新登录 chatgpt.com，并确认当前浏览器 Profile 是有 Codex 权限的账号 | {_restore_hint('codex')}",
+                f"ChatGPT cookies were readable, but no access token was returned | Re-login to chatgpt.com in Chrome/Firefox and confirm the current browser profile uses the account with Codex access | {_restore_hint('codex')}",
+            ),
+            kind="session",
+        )
     return token
+
+
+def _codex_usage_denied_message(status_code: int) -> str:
+    if status_code == 401:
+        return t(
+            f"Codex 用量接口返回 HTTP 401 | ChatGPT 登录态可能已过期，请在 Chrome/Firefox 重新登录 chatgpt.com | {_restore_hint('codex')}",
+            f"Codex usage API returned HTTP 401 | Your ChatGPT session may have expired; re-login to chatgpt.com in Chrome/Firefox | {_restore_hint('codex')}",
+        )
+    return t(
+        f"Codex 用量接口返回 HTTP 403 | 检查浏览器 Profile、Codex 计划/seat、工作区 credits/管理员限制，并确认网页用量页可打开 | {_restore_hint('codex')}",
+        f"Codex usage API returned HTTP 403 | Check the browser profile, Codex plan/seat, workspace credits/admin controls, and confirm the usage page opens in the browser | {_restore_hint('codex')}",
+    )
 
 
 def _normalize_web_rate_limits(data: dict) -> dict:
@@ -668,10 +715,8 @@ def live_codex_web_usage(timeout: int = CLAUDE_WEB_TIMEOUT_SEC):
     except urllib.error.HTTPError as e:
         if e.code in (401, 403):
             raise CodexAuthError(
-                t(
-                    f"HTTP {e.code}：未登录 ChatGPT 或无 Codex 权限（可能未订阅，或需重新登录）",
-                    f"HTTP {e.code}: not signed in to ChatGPT or no Codex access (subscription may be required)",
-                )
+                _codex_usage_denied_message(e.code),
+                kind="usage",
             )
         raise CodexWebError(f"HTTP {e.code}")
     except Exception as e:
