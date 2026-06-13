@@ -214,15 +214,11 @@ def _fetch_claude(lang):
             "plan":     plan,
         }
     except ClaudeWebError as e:
-        kind = getattr(e, "kind", "generic")
-        if kind == "cloudflare":
-            msg = _tr(lang, "需在浏览器通过 claude.ai 人机验证", "Pass claude.ai human-check in browser")
-        elif kind == "auth":
-            msg = _tr(lang, "需在浏览器重新登录 claude.ai", "Re-login at claude.ai in browser")
-        else:
-            msg = str(e)
-            if "JSON" in msg or "DOCTYPE" in msg or "html" in msg.lower():
-                msg = _tr(lang, "网络不可用或需重新登录 claude.ai", "Network error or re-login at claude.ai required")
+        msg = str(e)
+        if "JSON" in msg or "DOCTYPE" in msg or "html" in msg.lower():
+            msg = _tr(lang,
+                "Claude 返回了异常网页响应 | 请在浏览器重新登录 claude.ai 或完成人机验证 | 完成后点“立即刷新”恢复显示",
+                "Claude returned an unexpected web response | Re-login to claude.ai or pass the browser check | Click Refresh now to restore display")
         return {"error": msg}
     except (socket.timeout, TimeoutError):
         return {"error": _tr(lang, "网络超时，请稍后重试", "Network timeout, please retry later")}
@@ -389,6 +385,26 @@ def _detail_text(mode, pct, reset, lang):
     if lang == "en":
         return f"  {mode}\t{pct:>3}% left   \t↻ {reset}"
     return f"  {mode}\t{pct:>3}% 剩余\t↻ {reset}"
+
+
+def _menu_error_lines(message, lang):
+    parts = [p.strip() for p in str(message).split("|") if p.strip()]
+    if len(parts) >= 3:
+        joiner = " / " if lang == "en" else "；"
+        return f"  {parts[0]}", f"  {joiner.join(parts[1:])}"
+    if len(parts) == 2:
+        restore = _tr(lang, "完成后点“立即刷新”恢复显示", "Click Refresh now to restore display")
+        return f"  {parts[0]}", f"  {parts[1]}；{restore}"
+    restore = _tr(lang, "处理后点“立即刷新”恢复显示", "After fixing it, click Refresh now to restore display")
+    return f"  {message}", f"  {restore}"
+
+
+def _set_error_rows(header_item, first_item, second_item, title, message, lang):
+    first, second = _menu_error_lines(message, lang)
+    header_item.title = f"{title} ⚠️"
+    first_item.title = first
+    second_item.title = second
+    second_item._menuitem.setHidden_(False)
 
 # ── 主 App ────────────────────────────────────────────────────────────────────
 
@@ -644,9 +660,14 @@ class AiLimitApp(rumps.App):
         self._claude_7d._menuitem.setHidden_(not show_claude)
         if show_claude:
             if "error" in claude:
-                self._claude_header.title = "Claude Code ⚠️"
-                self._claude_5h.title = f"  {claude['error'][:60]}"
-                self._claude_7d._menuitem.setHidden_(True)
+                _set_error_rows(
+                    self._claude_header,
+                    self._claude_5h,
+                    self._claude_7d,
+                    "Claude Code",
+                    claude["error"],
+                    lang,
+                )
             elif claude:
                 plan = _fmt_plan(claude.get("plan"), lang)
                 self._claude_header.title = f"Claude Code{plan}"
@@ -661,9 +682,14 @@ class AiLimitApp(rumps.App):
         self._codex_7d._menuitem.setHidden_(not show_codex)
         if show_codex:
             if "error" in codex:
-                self._codex_header.title = "CodeX ⚠️"
-                self._codex_5h.title = f"  {codex['error'][:60]}"
-                self._codex_7d._menuitem.setHidden_(True)
+                _set_error_rows(
+                    self._codex_header,
+                    self._codex_5h,
+                    self._codex_7d,
+                    "CodeX",
+                    codex["error"],
+                    lang,
+                )
             elif codex:
                 plan = _fmt_plan(codex.get("plan"), lang)
                 self._codex_header.title = f"CodeX{plan}"
